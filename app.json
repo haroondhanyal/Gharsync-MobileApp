@@ -6,9 +6,50 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
-    "ios": { "supportsTablet": true, "bundleIdentifier": "com.gharsync.mobile" },
-    "android": { "package": "com.gharsync.mobile" },
-    "plugins": ["expo-router", "expo-secure-store", "expo-image-picker", "expo-document-picker", "expo-camera"],
-    "experiments": { "typedRoutes": true }
+    "icon": "./assets/icon.png",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.gharsync.mobile"
+    },
+    "android": {
+      "package": "com.gharsync.mobile",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#173F35"
+      }
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-image-picker",
+      "expo-document-picker",
+      "expo-camera",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-lockup.png",
+          "imageWidth": 300,
+          "resizeMode": "contain",
+          "backgroundColor": "#F7F7F2",
+          "android": {
+            "image": "./assets/splash-lockup.png",
+            "imageWidth": 300,
+            "resizeMode": "contain",
+            "backgroundColor": "#F7F7F2"
+          },
+          "ios": {
+            "image": "./assets/splash-lockup.png",
+            "imageWidth": 300,
+            "resizeMode": "contain",
+            "backgroundColor": "#F7F7F2",
+            "tabletImage": "./assets/splash-lockup.png",
+            "tabletBackgroundColor": "#F7F7F2"
+          }
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
   }
 }

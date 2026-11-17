@@ -45,6 +45,22 @@ src/
 - Expo Camera, Document Picker and Image Picker for device features
 - Shared design tokens, safe-area layout, keyboard-aware forms and accessible controls
 
+## Brand, app icon and launch screen
+
+The native app includes a custom GharSync house mark in the product palette: forest green (`#173F35`), warm off-white (`#F7F7F2`) and muted gold (`#D9CF8E`). Expo uses `assets/icon.png` for the iOS app icon, `assets/adaptive-icon.png` for the Android adaptive foreground and `assets/splash-lockup.png` for the native launch screen. The splash uses the warm product background and remains visible until SecureStore session restoration is complete.
+
+![GharSync mobile app icon](./assets/icon.png)
+
+![GharSync native splash-screen lockup](./assets/splash-lockup.png)
+
+The source artwork is reproducible with the checked-in macOS Swift renderer:
+
+```sh
+swift scripts/generate-brand-assets.swift
+```
+
+This regenerates the three PNG assets without installing an image package. Expo icon/splash changes are native project configuration; create a new native development or store build to see them on an installed app. Reloading only the JavaScript bundle does not replace an already installed native icon or launch screen.
+
 ## Requirements
 
 - Node.js `24.6.0` (see `.nvmrc`)
@@ -153,9 +169,9 @@ Screens use safe-area-aware pages and scroll containers for long content. Forms 
 - Payment status changes are recorded through the server's payment ledger; this app does not claim to charge cards without a configured payment processor.
 - Production operations still need server monitoring, backups, delivery-provider setup, data retention and incident-response processes.
 
-## Screenshots
+## App previews
 
-No device screenshots are committed yet. Capture current iOS and Android screens from preview builds before adding store marketing images; use real device output and remove customer or workspace personal data before publishing.
+The repository includes its actual app icon and native launch lockup above. Product screen captures should be captured from iOS and Android preview builds with realistic test data. Review them at phone and tablet widths and remove customer or workspace personal data before using them in public documentation or store listings.
 
 ## Repository hygiene
 

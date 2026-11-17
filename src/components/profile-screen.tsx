@@ -1,0 +1,16 @@
+import React, { useEffect, useState } from "react";
+import { ScrollView, StyleSheet, Text } from "react-native";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { api } from "../api/client";
+import { useSession } from "../auth/session-context";
+import { Button, Card, Field, Heading, Notice, Page } from "./ui";
+import { colors } from "../theme";
+type Profile={fullName:string;email:string;phone:string;city:string;countryCode:string};
+export function ProfileScreen(){const cache=useQueryClient();const{user,setUser}=useSession();const query=useQuery({queryKey:["profile"],queryFn:()=>api<Profile>("/auth/mobile/me")});const[v,setV]=useState<Profile>({fullName:"",email:"",phone:"",city:"",countryCode:"PK"});const[currentPassword,setCurrent]=useState("");const[newPassword,setNew]=useState("");
+ useEffect(()=>{if(query.data)setV(query.data)},[query.data]);
+ const update=useMutation({mutationFn:()=>api("/auth/me/profile",{method:"PATCH",body:{fullName:v.fullName,phone:v.phone,city:v.city,countryCode:v.countryCode}}),onSuccess:async()=>{await cache.invalidateQueries({queryKey:["profile"]});if(user)setUser({...user,fullName:v.fullName})}});
+ const password=useMutation({mutationFn:()=>api("/auth/me/password",{method:"PATCH",body:{currentPassword,newPassword}}),onSuccess:()=>{setCurrent("");setNew("");cache.invalidateQueries({queryKey:["security"]})}});
+ const field=(key:keyof Profile,label:string,editable=true)=><Field label={label} value={v[key]} editable={editable} onChangeText={value=>setV(old=>({...old,[key]:value}))} keyboardType={key==="phone"?"phone-pad":"default"}/>;
+ return <Page style={{paddingHorizontal:0,paddingTop:0}}><ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled"><Heading eyebrow="PHASE 02 · ACCOUNT" title="My profile" subtitle="Your account and workspace identity stay in sync."/>{query.isError?<Notice>{query.error.message}</Notice>:null}<Card>{field("fullName","Full name")}{field("email","Email address",false)}{field("phone","Phone with country code")}{field("city","City")}{update.isError?<Notice>{update.error.message}</Notice>:null}{update.isSuccess?<Notice tone="info">Profile saved.</Notice>:null}<Button title="Save profile" loading={update.isPending} onPress={()=>update.mutate()}/></Card><Card><Text style={s.title}>Password & security</Text><Text style={s.meta}>Use at least 12 characters. Other sessions are revoked after a password change.</Text><Field label="Current password" value={currentPassword} onChangeText={setCurrent} secureTextEntry textContentType="password"/><Field label="New password · 12+ characters" value={newPassword} onChangeText={setNew} secureTextEntry textContentType="newPassword"/>{password.isError?<Notice>{password.error.message}</Notice>:null}{password.isSuccess?<Notice tone="info">Password updated securely.</Notice>:null}<Button title="Update password" secondary loading={password.isPending} disabled={!currentPassword||newPassword.length<12} onPress={()=>password.mutate()}/></Card></ScrollView></Page>;
+}
+const s=StyleSheet.create({content:{padding:20,gap:12,paddingBottom:32},title:{color:colors.ink,fontSize:16,fontWeight:"900"},meta:{color:colors.muted,fontSize:11,lineHeight:17}});

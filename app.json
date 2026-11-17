@@ -1,0 +1,14 @@
+{
+  "expo": {
+    "name": "GharSync",
+    "slug": "gharsync-mobile",
+    "scheme": "gharsync",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "ios": { "supportsTablet": true, "bundleIdentifier": "com.gharsync.mobile" },
+    "android": { "package": "com.gharsync.mobile" },
+    "plugins": ["expo-router", "expo-secure-store", "expo-image-picker", "expo-document-picker", "expo-camera"],
+    "experiments": { "typedRoutes": true }
+  }
+}

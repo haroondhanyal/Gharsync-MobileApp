@@ -38,8 +38,8 @@ src/
 
 ## Technology
 
-- Expo SDK 57, Expo Router and React Native 0.86
-- React 19 and TypeScript 6 with strict type checking
+- Expo SDK 58, Expo Router and React Native 0.88
+- React 19.3 and TypeScript 6 with strict type checking
 - TanStack Query for server state, caching, loading and mutation flows
 - `expo-secure-store` for native access and refresh tokens
 - Expo Camera, Document Picker and Image Picker for device features
@@ -159,7 +159,8 @@ Screens use safe-area-aware pages and scroll containers for long content. Forms 
 - **Environment change is not reflected:** restart Metro and clear its cache with `npx expo start --clear`.
 - **Sign-in returns an audience/401 error:** check that the API has the mobile auth changes deployed and that access-token audience validation is configured for native bearer requests.
 - **Camera or files do not open:** grant the OS permission in app settings, then reopen the feature. QR lookup also requires a valid asset QR value and API access.
-- **Native dependency mismatch:** run `npx expo-doctor` and align package versions with the installed Expo SDK.
+- **Expo Go says the project is incompatible:** install the Expo Go build matching this app's SDK 58 from [expo.dev/go](https://expo.dev/go?device=true&platform=android&sdkVersion=58), then restart Metro. SDK 58 is compatible with Android 11; the error means Expo Go and project SDK versions differ.
+- **Native dependency mismatch:** use Node.js `24.6.0`, run `npx expo install --fix`, and then `npx expo-doctor` to align packages with the installed Expo SDK.
 
 ## Privacy and operational boundaries
 

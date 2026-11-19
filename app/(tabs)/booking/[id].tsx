@@ -1,12 +1,13 @@
 import React, { useState } from "react";
 import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
-import { Stack, useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams } from "expo-router";
+import { Drawer } from "expo-router/drawer";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api } from "../../src/api/client";
-import { useSession } from "../../src/auth/session-context";
-import { Button, Card, Field, Heading, Notice, Page } from "../../src/components/ui";
-import { colors } from "../../src/theme";
+import { api } from "../../../src/api/client";
+import { useSession } from "../../../src/auth/session-context";
+import { Button, Card, Field, Heading, Notice, Page } from "../../../src/components/ui";
+import { colors } from "../../../src/theme";
 type Booking = { id: string; status: string; description: string; preferredAt?: string; scheduledAt?: string; urgency: string; customer?: { fullName: string; phone?: string }; service?: { name: string }; property?: { name: string; address?: string }; quotes?: Array<{ id: string; status: string; total: number | string; items?: Array<{ description: string; quantity: number; unitPrice: number | string }> }>; invoices?: Array<{ id: string; invoiceNumber: string }> };
 type Technician = { id:string; user?:{fullName:string}; technicianProfile?:{skills?:string[];isAvailable?:boolean} };
 export default function BookingDetail() {
@@ -26,7 +27,7 @@ export default function BookingDetail() {
   const next = (technician ? techNext : managerNext)[booking?.status ?? ""];
   const label: Record<string, string> = { UNDER_REVIEW: "Start review", SCHEDULED: "Schedule visit", ASSIGNED: "Assign job", TECHNICIAN_EN_ROUTE: "Start travel", IN_PROGRESS: "Start work", COMPLETED: "Complete job" };
   const failure = transition.error ?? quote.error ?? issue.error;
-  return <Page style={{ padding: 0 }}><Stack.Screen options={{ title: "Booking details" }} /><ScrollView contentContainerStyle={s.content}><Heading eyebrow="PHASE 05 · SERVICE WORKFLOW" title={booking?.customer?.fullName ?? "Booking details"} subtitle={booking?.service?.name ?? "Service request"} />{query.isPending ? <ActivityIndicator color={colors.green} /> : query.isError ? <Notice>{query.error.message}</Notice> : booking ? <>
+  return <Page style={{ padding: 0 }}><Drawer.Screen options={{ title: "Booking details" }} /><ScrollView contentContainerStyle={s.content}><Heading eyebrow="PHASE 05 · SERVICE WORKFLOW" title={booking?.customer?.fullName ?? "Booking details"} subtitle={booking?.service?.name ?? "Service request"} />{query.isPending ? <ActivityIndicator color={colors.green} /> : query.isError ? <Notice>{query.error.message}</Notice> : booking ? <>
     <Card style={s.statusCard}><View style={s.row}><Text style={s.eyebrow}>CURRENT STATUS</Text><Text style={s.badge}>{booking.status.replaceAll("_", " ")}</Text></View><Text style={s.title}>{booking.service?.name ?? "Home service"}</Text><Text style={s.meta}>{booking.urgency} priority{booking.scheduledAt ? ` · ${new Date(booking.scheduledAt).toLocaleString()}` : ""}</Text></Card>
     <Card><Text style={s.section}>Request details</Text><Text style={s.body}>{booking.description}</Text><Text style={s.meta}>{booking.customer?.fullName} · {booking.customer?.phone ?? ""}</Text>{booking.property ? <Text style={s.meta}>{booking.property.name} · {booking.property.address}</Text> : null}</Card>
     {next === "SCHEDULED" ? <Card><Field label="Visit date and time" value={schedule} onChangeText={setSchedule} placeholder="2026-11-17T14:00:00" /></Card> : null}

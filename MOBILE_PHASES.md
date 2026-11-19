@@ -4,7 +4,7 @@ Mobile scope is a native companion to the existing web/API product. Every busine
 
 | Phase | Mobile coverage | Main app areas |
 |---|---|---|
-| 1 · Foundation | Standalone Expo Router app, strict TypeScript, shared GharSync tokens, safe-area/keyboard layouts, accessible controls, query loading/error/empty states and platform bundle support. | App shell, tabs, shared UI kit |
+| 1 · Foundation | Standalone Expo Router app, strict TypeScript, shared GharSync tokens, safe-area/keyboard layouts, accessible controls, query loading/error/empty states and platform bundle support. | App shell, side drawer, shared UI kit |
 | 2 · Identity and tenancy | Native access/rotating refresh sessions in SecureStore, business sign-up, OTP, recovery, sign-out, organization selection/setup, invite acceptance, team invitations/members, branches and session revocation. | Auth, workspace setup, team, branches, profile, security |
 | 3 · Business and CRM | Live organization dashboard and metrics, warranty alert, customer search/create, booking shortcuts and recent activity. | Overview, customers |
 | 4 · Homes and assets | Properties and asset registration, customer/property selection, private document/photo attachment, warranty visibility and camera QR resolution. | Properties, assets, documents, QR scanner |
@@ -19,12 +19,12 @@ Mobile scope is a native companion to the existing web/API product. Every busine
 
 The web repository contains additive API support for:
 
-- `POST /auth/mobile/register` and `POST /auth/mobile/sign-in` — issue access and refresh tokens with `gharsync-mobile` access-token audience.
-- `POST /auth/mobile/refresh` and `POST /auth/mobile/sign-out` — rotate or revoke a native refresh session.
-- `GET /auth/mobile/me` — fetch the current profile, including during OTP verification.
-- `POST /auth/mobile/organizations/:organizationId/select` — select a membership and return its new mobile-audience access token.
+- `POST /mobile/register` and `POST /mobile/sign-in` — issue access and refresh tokens with `gharsync-mobile` access-token audience.
+- `POST /mobile/refresh` and `POST /mobile/sign-out` — rotate or revoke a native refresh session.
+- `GET /mobile/me` — fetch the current profile, including during OTP verification.
+- `POST /mobile/organizations/:organizationId/select` — select a membership and return its new mobile-audience access token.
 
-JWT bearer requests must carry the native audience; browser cookie requests must carry the existing web audience. The existing browser auth and cookie contracts are preserved.
+The companion API changes, including explicit web/mobile access and refresh audiences, are recorded in [`patches/gharsync-api-mobile-auth.patch`](./patches/gharsync-api-mobile-auth.patch). JWT bearer requests carry the native audience; browser cookie requests retain the existing web audience and routes.
 
 ## Release boundary
 

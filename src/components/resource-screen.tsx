@@ -52,7 +52,7 @@ function flatten(value: unknown): Record<string, unknown>[] { return rows(value)
 export function ResourceScreen({ slug }: { slug: string }) {
   const resource = resources[slug]; const definition = resource?.create; const cache = useQueryClient();
   const [modal, setModal] = useState(false); const [form, setForm] = useState<Record<string, string>>({}); const [search, setSearch] = useState(""); const [inviteLink,setInviteLink]=useState("");
-  const me = useQuery({ queryKey: ["resource-me"], queryFn: () => api<Record<string, unknown>>("/auth/mobile/me"), enabled: ["team", "platform"].includes(slug) });
+  const me = useQuery({ queryKey: ["resource-me"], queryFn: () => api<Record<string, unknown>>("/mobile/me"), enabled: ["team", "platform"].includes(slug) });
   const organizationId = String(me.data?.currentOrganizationId ?? "");
   const queryPath = slug === "team" && organizationId ? `/organizations/${organizationId}/members` : resource?.path ?? "/health";
   const query = useQuery({ queryKey: ["resource", slug, organizationId], queryFn: () => api<unknown>(queryPath), enabled: !!resource && (slug !== "team" || !!organizationId) });

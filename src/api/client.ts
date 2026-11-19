@@ -10,7 +10,7 @@ async function refreshSession(): Promise<TokenPair | null> {
   refreshing = (async () => {
     const old = await readTokens(); if (!old) return null;
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/mobile/refresh`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ refreshToken: old.refreshToken }) });
+      const response = await fetch(`${API_BASE_URL}/mobile/refresh`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ refreshToken: old.refreshToken }) });
       if (!response.ok) throw new Error("Session expired. Please sign in again.");
       const next = await response.json() as TokenPair; await saveTokens(next); return next;
     } catch { await clearTokens(); expired?.(); return null; }
@@ -35,7 +35,7 @@ export async function api<T>(path: string, options: Options = {}): Promise<T> {
   const url = `${API_BASE_URL}${path.startsWith("/") ? path : `/${path}`}`;
   const requestBody = body === undefined ? undefined : body instanceof FormData ? body : JSON.stringify(body);
   let response = await fetch(url, { ...rest, headers, body: requestBody });
-  const publicAuth = ["/auth/mobile/sign-in", "/auth/mobile/register", "/auth/mobile/refresh", "/auth/mobile/sign-out"].includes(path);
+  const publicAuth = ["/mobile/sign-in", "/mobile/register", "/mobile/refresh", "/mobile/sign-out"].includes(path);
   if (response.status === 401 && auth && !publicAuth) {
     tokens = await refreshSession();
     if (tokens) { headers.set("Authorization", `Bearer ${tokens.accessToken}`); response = await fetch(url, { ...rest, headers, body: requestBody }); }

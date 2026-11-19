@@ -10,7 +10,9 @@
     "typecheck": "tsc --noEmit",
     "doctor": "npx expo-doctor",
     "export:ios": "expo export --platform ios --output-dir /tmp/gharsync-ios",
-    "export:android": "expo export --platform android --output-dir /tmp/gharsync-android"
+    "export:android": "expo export --platform android --output-dir /tmp/gharsync-android",
+    "seed:demo-accounts": "node scripts/seed-simple-demo-accounts.mjs",
+    "seed:demo-data": "node scripts/seed-demo-module-data.mjs"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.103.1",
@@ -25,6 +27,7 @@
     "expo-splash-screen": "~58.0.14",
     "expo-status-bar": "~58.0.5",
     "expo-symbols": "~58.0.5",
+    "libphonenumber-js": "^1.13.16",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "react-native": "0.88.1",

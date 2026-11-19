@@ -1,0 +1,231 @@
+diff --git a/apps/api/src/auth/auth-context.ts b/apps/api/src/auth/auth-context.ts
+index 302d4b6..111f3e2 100644
+--- a/apps/api/src/auth/auth-context.ts
++++ b/apps/api/src/auth/auth-context.ts
+@@ -8,2 +8,3 @@ export const REQUIRED_PERMISSION = "gharsync:required-permission";
+ export interface AuthContext {
++  audience: "gharsync-web" | "gharsync-mobile";
+   userId: string;
+diff --git a/apps/api/src/auth/auth.controller.ts b/apps/api/src/auth/auth.controller.ts
+index 1a55cf0..9df55ba 100644
+--- a/apps/api/src/auth/auth.controller.ts
++++ b/apps/api/src/auth/auth.controller.ts
+@@ -84,3 +84,3 @@ export class AuthController {
+     if (!token) return this.auth.refresh("");
+-    const rotated = await this.auth.refresh(token);
++    const rotated = await this.auth.refresh(token, "gharsync-refresh");
+     cookies(response, rotated);
+diff --git a/apps/api/src/auth/auth.module.ts b/apps/api/src/auth/auth.module.ts
+index 169b9f1..fd50e50 100644
+--- a/apps/api/src/auth/auth.module.ts
++++ b/apps/api/src/auth/auth.module.ts
+@@ -4,2 +4,3 @@ import { JwtModule } from "@nestjs/jwt";
+ import { AuthController } from "./auth.controller.js";
++import { MobileAuthController } from "./mobile-auth.controller.js";
+ import { AuthService } from "./auth.service.js";
+@@ -22,3 +23,3 @@ import { authSecret } from "./auth-secrets.js";
+   ],
+-  controllers: [AuthController],
++  controllers: [AuthController, MobileAuthController],
+   providers: [AuthService, DeliveryService, JwtAuthGuard, OrganizationAccessGuard, PasswordHasherService, PhoneOtpService],
+diff --git a/apps/api/src/auth/auth.service.ts b/apps/api/src/auth/auth.service.ts
+index 378f54a..0d14a17 100644
+--- a/apps/api/src/auth/auth.service.ts
++++ b/apps/api/src/auth/auth.service.ts
+@@ -22,2 +22,4 @@ const avatarRoot = () => resolve(process.env.DOCUMENT_STORAGE_PATH ?? "../../var
+ type TokenPair = { accessToken: string; refreshToken: string };
++type AccessAudience = "gharsync-web" | "gharsync-mobile";
++type RefreshAudience = "gharsync-refresh" | "gharsync-mobile-refresh";
+ type RequestInfo = { ip?: string; userAgent?: string };
+@@ -47,3 +49,3 @@ export class AuthService {
+ 
+-  private async tokens(userId: string, sessionId: string, familyId: string, organizationId: string | null): Promise<TokenPair> {
++  private async tokens(userId: string, sessionId: string, familyId: string, organizationId: string | null, audience: AccessAudience = "gharsync-web"): Promise<TokenPair> {
+     const issuer = "gharsync-api";
+@@ -51,3 +53,3 @@ export class AuthService {
+       { sub: userId, sid: sessionId, orgId: organizationId, use: "access" },
+-      { secret: authSecret(this.config, "JWT_ACCESS_SECRET"), issuer, audience: "gharsync-web", expiresIn: ACCESS_TTL_SECONDS },
++      { secret: authSecret(this.config, "JWT_ACCESS_SECRET"), issuer, audience, expiresIn: ACCESS_TTL_SECONDS },
+     );
+@@ -55,3 +57,3 @@ export class AuthService {
+       { sub: userId, sid: sessionId, fid: familyId, use: "refresh" },
+-      { secret: authSecret(this.config, "JWT_REFRESH_SECRET"), issuer, audience: "gharsync-refresh", expiresIn: REFRESH_TTL_SECONDS },
++      { secret: authSecret(this.config, "JWT_REFRESH_SECRET"), issuer, audience: audience === "gharsync-mobile" ? "gharsync-mobile-refresh" : "gharsync-refresh", expiresIn: REFRESH_TTL_SECONDS },
+     );
+@@ -60,6 +62,6 @@ export class AuthService {
+ 
+-  private async createSession(userId: string, organizationId: string | null) {
++  private async createSession(userId: string, organizationId: string | null, audience: AccessAudience = "gharsync-web") {
+     const sessionId = randomUUID();
+     const familyId = randomUUID();
+-    const tokens = await this.tokens(userId, sessionId, familyId, organizationId);
++    const tokens = await this.tokens(userId, sessionId, familyId, organizationId, audience);
+     await this.prisma.refreshSession.create({
+@@ -94,3 +96,3 @@ export class AuthService {
+     countryCode?: string;
+-  }, info: RequestInfo) {
++  }, info: RequestInfo, audience: AccessAudience = "gharsync-web") {
+     try { authSecret(this.config, "JWT_ACCESS_SECRET"); authSecret(this.config, "JWT_REFRESH_SECRET"); } catch {
+@@ -144,3 +146,3 @@ export class AuthService {
+     }
+-    const tokens = await this.createSession(userId, organizationId);
++    const tokens = await this.createSession(userId, organizationId, audience);
+     try {
+@@ -155,3 +157,3 @@ export class AuthService {
+ 
+-  async signIn(emailInput: string, password: string, info: RequestInfo) {
++  async signIn(emailInput: string, password: string, info: RequestInfo, audience: AccessAudience = "gharsync-web") {
+     const email = emailInput.trim().toLowerCase();
+@@ -168,3 +170,3 @@ export class AuthService {
+     const organizationId = memberships[0]?.organizationId ?? null;
+-    const tokens = await this.createSession(user.id, organizationId);
++    const tokens = await this.createSession(user.id, organizationId, audience);
+     await this.audit("auth.signed_in", user.id, organizationId, info);
+@@ -173,7 +175,7 @@ export class AuthService {
+ 
+-  async refresh(token: string) {
+-    let claims: { sub: string; sid: string; fid: string; use: string };
++  async refresh(token: string, expectedAudience?: RefreshAudience) {
++    let claims: { sub: string; sid: string; fid: string; use: string; aud?: string | string[] };
+     try {
+       claims = await this.jwt.verifyAsync(token, {
+-        secret: this.config.getOrThrow<string>("JWT_REFRESH_SECRET"), issuer: "gharsync-api", audience: "gharsync-refresh",
++        secret: authSecret(this.config, "JWT_REFRESH_SECRET"), issuer: "gharsync-api", audience: expectedAudience ?? ["gharsync-refresh", "gharsync-mobile-refresh"],
+       });
+@@ -184,3 +186,5 @@ export class AuthService {
+     const existing = await this.prisma.refreshSession.findUnique({ where: { id: claims.sid } });
+-    if (!existing || existing.userId !== claims.sub || existing.familyId !== claims.fid) throw new UnauthorizedException();
++    if (!existing || existing.userId !== claims.sub || existing.familyId !== claims.fid) {
++      throw new UnauthorizedException();
++    }
+     if (existing.revokedAt || existing.expiresAt <= new Date() || existing.tokenHash !== tokenHash(token)) {
+@@ -192,3 +196,5 @@ export class AuthService {
+     const nextId = randomUUID();
+-    const rotatedTokens = await this.tokens(existing.userId, nextId, existing.familyId, existing.organizationId);
++    const refreshAudiences = Array.isArray(claims.aud) ? claims.aud : [claims.aud];
++    const accessAudience: AccessAudience = refreshAudiences.includes("gharsync-mobile-refresh") ? "gharsync-mobile" : "gharsync-web";
++    const rotatedTokens = await this.tokens(existing.userId, nextId, existing.familyId, existing.organizationId, accessAudience);
+     try {
+@@ -220,3 +226,3 @@ export class AuthService {
+         const claims = await this.jwt.verifyAsync<{ sub: string; sid: string }>(refreshToken, {
+-          secret: this.config.getOrThrow<string>("JWT_REFRESH_SECRET"), issuer: "gharsync-api", audience: "gharsync-refresh",
++          secret: authSecret(this.config, "JWT_REFRESH_SECRET"), issuer: "gharsync-api", audience: ["gharsync-refresh", "gharsync-mobile-refresh"],
+         });
+@@ -316,3 +322,3 @@ export class AuthService {
+     const session = await this.prisma.refreshSession.findUniqueOrThrow({ where: { id: auth.sessionId } });
+-    const accessToken = (await this.tokens(auth.userId, session.id, session.familyId, organizationId)).accessToken;
++    const accessToken = (await this.tokens(auth.userId, session.id, session.familyId, organizationId, auth.audience)).accessToken;
+     await this.audit("organization.selected", auth.userId, organizationId);
+diff --git a/apps/api/src/auth/jwt-auth.guard.ts b/apps/api/src/auth/jwt-auth.guard.ts
+index 7c8308e..52920a1 100644
+--- a/apps/api/src/auth/jwt-auth.guard.ts
++++ b/apps/api/src/auth/jwt-auth.guard.ts
+@@ -14,2 +14,3 @@ interface TokenClaims {
+   use: "access";
++  aud?: string | string[];
+ }
+@@ -47,3 +48,3 @@ export class JwtAuthGuard implements CanActivate {
+         issuer: "gharsync-api",
+-        audience: "gharsync-web",
++        audience: ["gharsync-web", "gharsync-mobile"],
+       });
+@@ -75,3 +76,5 @@ export class JwtAuthGuard implements CanActivate {
+     if (!phoneVerified && !allowUnverified) throw new UnauthorizedException("Verify your phone number to continue.");
++    const tokenAudiences = Array.isArray(claims.aud) ? claims.aud : [claims.aud];
+     request.auth = {
++      audience: tokenAudiences.includes("gharsync-mobile") ? "gharsync-mobile" : "gharsync-web",
+       userId: session.userId,
+diff --git a/apps/api/src/auth/mobile-auth.controller.ts b/apps/api/src/auth/mobile-auth.controller.ts
+new file mode 100644
+index 0000000..869448e
+--- /dev/null
++++ b/apps/api/src/auth/mobile-auth.controller.ts
+@@ -0,0 +1,60 @@
++import { Body, Controller, Get, HttpCode, Param, Post, Req } from "@nestjs/common";
++import { Throttle } from "@nestjs/throttler";
++import type { Request } from "express";
++import { z } from "zod";
++import { signInSchema, signUpSchema } from "@gharsync/validation";
++import { CurrentAuth, Public, type AuthContext } from "./auth-context.js";
++import { AuthService } from "./auth.service.js";
++
++function requestInfo(request: Request) {
++  const userAgent = request.headers["user-agent"];
++  return { ip: request.ip, userAgent: Array.isArray(userAgent) ? userAgent[0] : userAgent };
++}
++
++@Controller("mobile")
++export class MobileAuthController {
++  constructor(private readonly auth: AuthService) {}
++
++  @Public()
++  @Throttle({ auth: { limit: 8, ttl: 60_000 } })
++  @Post("sign-in")
++  @HttpCode(200)
++  async signIn(@Body({ schema: signInSchema }) body: z.infer<typeof signInSchema>, @Req() request: Request) {
++    const result = await this.auth.signIn(body.email, body.password, requestInfo(request), "gharsync-mobile");
++    return { ...result.tokens, user: result.user, phoneVerificationRequired: result.phoneVerificationRequired };
++  }
++
++  @Public()
++  @Throttle({ auth: { limit: 5, ttl: 60_000 } })
++  @Post("register")
++  async register(@Body({ schema: signUpSchema }) body: z.infer<typeof signUpSchema>, @Req() request: Request) {
++    const result = await this.auth.register(body, requestInfo(request), "gharsync-mobile");
++    return { ...result.tokens, user: result.user, phoneVerificationRequired: result.phoneVerificationRequired };
++  }
++
++  @Public()
++  @Throttle({ auth: { limit: 10, ttl: 60_000 } })
++  @Post("refresh")
++  @HttpCode(200)
++  refresh(@Body() body: { refreshToken?: string }) {
++    return this.auth.refresh(body.refreshToken ?? "", "gharsync-mobile-refresh");
++  }
++
++  @Public()
++  @Post("sign-out")
++  @HttpCode(200)
++  signOut(@Body() body: { refreshToken?: string }, @Req() request: Request) {
++    return this.auth.signOut(body.refreshToken, requestInfo(request));
++  }
++
++  @Get("me")
++  me(@CurrentAuth() current: AuthContext) {
++    return this.auth.getMe(current.userId, current.organizationId);
++  }
++
++  @Post("organizations/:organizationId/select")
++  @HttpCode(200)
++  selectOrganization(@CurrentAuth() current: AuthContext, @Param("organizationId", { schema: z.uuid() }) organizationId: string) {
++    return this.auth.selectOrganization(current, organizationId);
++  }
++}
+diff --git a/apps/api/src/permissions/permission-catalog.ts b/apps/api/src/permissions/permission-catalog.ts
+index 563b73c..2941d1e 100644
+--- a/apps/api/src/permissions/permission-catalog.ts
++++ b/apps/api/src/permissions/permission-catalog.ts
+@@ -66,3 +66,3 @@ export async function ensurePlatformCatalog(tx: Prisma.TransactionClient) {
+   const plans = [
+-    { key: "FREE", name: "Free", description: "A clean start for a small local service team.", monthlyPrice: "0", annualPrice: "0", maxBranches: 2, maxStaff: 3, maxMonthlyJobs: 30, sortOrder: 0, features: ["Customer CRM", "Bookings and quotes", "Home passports", "Basic reports"] },
++    { key: "FREE", name: "Free", description: "A clean start for a small local service team.", monthlyPrice: "0", annualPrice: "0", maxBranches: 2, maxStaff: 10, maxMonthlyJobs: 30, sortOrder: 0, features: ["Customer CRM", "Bookings and quotes", "Home passports", "Basic reports"] },
+     { key: "STARTER", name: "Starter", description: "For growing local service businesses.", monthlyPrice: "4990", annualPrice: "49900", maxBranches: 2, maxStaff: 10, maxMonthlyJobs: 250, sortOrder: 1, features: ["Everything in Free", "Inventory and warranty", "Team scheduling", "Email support"] },
+diff --git a/scripts/seed-demo.mjs b/scripts/seed-demo.mjs
+index 4c75cc4..fe0b318 100644
+--- a/scripts/seed-demo.mjs
++++ b/scripts/seed-demo.mjs
+@@ -75,3 +75,3 @@ async function account({ email, fullName, accountType = "team", organizationName
+   const registered = await call(client, "/auth/register", { method: "POST", expected: 0, body: {
+-    accountType, fullName, email, password, phone: "03001234567",
++    accountType, fullName, email, password, phone: "+923001234567",
+     ...(accountType === "business" ? { organizationName, businessType, city } : {}),
+@@ -162,3 +162,3 @@ for (const [businessIndex, business] of businesses.entries()) {
+     const customer = (await call(owner, "/customers", { method: "POST", expected: 201, body: {
+-      fullName: `${name} ${suffix}`, phone, email: `${handle}.${business.key}.${suffix}@example.test`,
++      fullName: `${name} ${suffix}`, phone: `+92${phone.slice(1)}`, countryCode: "PK", city: business.city, email: `${handle}.${business.key}.${suffix}@example.test`,
+       tags: customerIndex === 0 ? ["priority", "annual-maintenance"] : ["residential", "demo"],
+@@ -191,3 +191,3 @@ for (const [businessIndex, business] of businesses.entries()) {
+ 
+-  const supplier = (await call(owner, "/inventory/suppliers", { method: "POST", expected: 201, body: { name: `${business.city} Home Parts Supply`, phone: "03001234567", email: `supply.${business.key}.${suffix}@example.test`, address: `Industrial Estate, ${business.city}`, notes: "Demo supplier. Verify invoice and part serial before making warranty claims." } })).data;
++  const supplier = (await call(owner, "/inventory/suppliers", { method: "POST", expected: 201, body: { name: `${business.city} Home Parts Supply`, phone: "+923001234567", email: `supply.${business.key}.${suffix}@example.test`, address: `Industrial Estate, ${business.city}`, notes: "Demo supplier. Verify invoice and part serial before making warranty claims." } })).data;
+   const products = [];

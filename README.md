@@ -15,6 +15,7 @@ The current implementation follows all ten delivery phases in [MOBILE_PHASES.md]
 | Home care | Properties, assets, warranty records, private document uploads and QR asset lookup |
 | Money and stock | Quotes, invoices, payment activity and decisions, product/supplier catalog, stock movements and warranty claims |
 | Team and support | Workforce and technician availability, time-off requests, in-app notifications, AI service drafts, multimodal help desk |
+| Navigation and appearance | Side drawer across workspace modules, configurable drawer side, system/light/dark themes, and optional floating AI chat |
 | SaaS operations | Plan and usage view, plan requests, and role-protected platform administration |
 
 Availability of some actions depends on organization role, plan entitlement, server configuration and the API's current provider integrations. The app reports server errors and unavailable AI/provider states rather than pretending those operations succeeded.
@@ -24,16 +25,17 @@ Availability of some actions depends on organization role, plan entitlement, ser
 ```text
 app/
 ├── (auth)/             Sign in, registration, phone verification, recovery
-├── (tabs)/             Dashboard, bookings, customers, more
-├── booking/[id].tsx    Job workflow, quote and invoice actions
-├── invoice/[id].tsx    Invoice and payment ledger
-├── feature/[slug].tsx  Workspace modules (team, assets, inventory, billing, etc.)
-├── scan.tsx            Camera QR asset lookup
+├── (tabs)/             Drawer layout, dashboard, customers, bookings and details
+│   ├── feature/[slug]  Workspace modules, including appearance settings
+│   ├── booking/[id]    Job workflow, quote and invoice actions
+│   ├── invoice/[id]    Invoice and payment ledger
+│   └── scan             Camera QR asset lookup
 └── workspace-setup.tsx Create workspace or accept invitation
 src/
 ├── api/client.ts       API requests, bearer access and refresh retry
 ├── auth/               Session context and secure token storage
-└── components/         Shared UI and feature screens
+├── appearance/         Persisted theme, drawer side and AI bubble preferences
+└── components/         Shared UI, drawer content, AI chat and feature screens
 ```
 
 ## Technology
@@ -43,7 +45,9 @@ src/
 - TanStack Query for server state, caching, loading and mutation flows
 - `expo-secure-store` for native access and refresh tokens
 - Expo Camera, Document Picker and Image Picker for device features
+- `libphonenumber-js` and a bundled country/city catalogue for international registration forms
 - Shared design tokens, safe-area layout, keyboard-aware forms and accessible controls
+- Local AI chat through the GharSync API to Ollama (`lfm3-omni` by default); the Service assistant keeps its separate, plan-gated draft API
 
 ## Brand, app icon and launch screen
 
@@ -56,7 +60,7 @@ The native app includes a custom GharSync house mark in the product palette: for
 The source artwork is reproducible with the checked-in macOS Swift renderer:
 
 ```sh
-swift scripts/generate-brand-assets.swift
+swift scripts/generate-web-brand-assets.swift
 ```
 
 This regenerates the three PNG assets without installing an image package. Expo icon/splash changes are native project configuration; create a new native development or store build to see them on an installed app. Reloading only the JavaScript bundle does not replace an already installed native icon or launch screen.
@@ -69,6 +73,8 @@ This regenerates the three PNG assets without installing an image package. Expo 
 - A running GharSync API with the native authentication endpoints described below
 
 ## Local development
+
+Demo account emails, the shared password, workspace roles, and seed instructions are recorded in [DEMO_ACCOUNTS.md](./DEMO_ACCOUNTS.md). Run `npm run seed:demo-accounts` against a local API to create 10 owners, 10 admins, and 10 technicians, then `npm run seed:demo-data` to populate their workspaces with module records.
 
 1. Install dependencies:
 
@@ -100,6 +106,17 @@ This regenerates the three PNG assets without installing an image package. Expo 
 
 Android production builds should use HTTPS. Do not ship a local or cleartext development URL.
 
+### Local Ollama assistant
+
+Run Ollama on the same computer as the GharSync API, then install the configured model:
+
+```sh
+ollama serve
+ollama pull lfm3-omni
+```
+
+The API defaults to `OLLAMA_BASE_URL=http://127.0.0.1:11434` and `OLLAMA_MODEL=lfm3-omni`. Set those variables in the API server environment if the Ollama host or model is different, then restart the API. The mobile app talks only to the GharSync API; do not put the Ollama address or credentials in the Expo `.env` or expose Ollama directly to the phone. The floating chat uses `/help-desk/chat`, while service drafts use `/ai/assist` and remain subject to API plan and permission checks.
+
 ## API and authentication contract
 
 Base URL example: `https://api.example.com/api/v1`.
@@ -108,16 +125,20 @@ The native client uses these auth endpoints:
 
 | Method | Endpoint | Purpose |
 | --- | --- | --- |
-| `POST` | `/auth/mobile/register` | Create an account and native session |
-| `POST` | `/auth/mobile/sign-in` | Sign in and issue mobile-audience tokens |
-| `POST` | `/auth/mobile/refresh` | Rotate a refresh session |
-| `POST` | `/auth/mobile/sign-out` | Revoke a refresh session |
-| `GET` | `/auth/mobile/me` | Load the authenticated user's profile |
-| `POST` | `/auth/mobile/organizations/:organizationId/select` | Select a workspace membership |
+| `POST` | `/mobile/register` | Create an account and native session |
+| `POST` | `/mobile/sign-in` | Sign in and issue a bearer token pair |
+| `POST` | `/mobile/refresh` | Rotate a refresh session |
+| `POST` | `/mobile/sign-out` | Revoke a refresh session |
+| `GET` | `/mobile/me` | Load the authenticated user's profile |
+| `POST` | `/mobile/organizations/:organizationId/select` | Select a workspace membership |
+
+The companion API repository needs these routes registered. A ready-to-apply API patch is in [patches/gharsync-api-mobile-auth.patch](./patches/gharsync-api-mobile-auth.patch). From the root of the GharSync API repository, apply it with `git apply /path/to/GharSync-MobileApp/patches/gharsync-api-mobile-auth.patch`, then restart the API. The patch adds the `/api/v1/mobile/sign-in` route that the app calls.
 
 Authenticated feature requests use `Authorization: Bearer <accessToken>`. The client stores tokens in SecureStore, coalesces concurrent refresh attempts, retries a request once after a 401, and clears local session data if refresh fails. The API must validate the mobile token audience for bearer requests and continue using the web audience for browser sessions. See the API repository's deployment documentation for environment variables and provider setup.
 
 The client serializes JSON automatically and leaves `FormData` boundaries to `fetch` for document and image uploads. API errors surface as readable messages in the relevant screen.
+
+The floating AI chat uses `/notifications/status` to show the configured Ollama model and `/help-desk/chat` for a conversational thread with recent message history. The Service assistant screen uses `/ai/status` and `/ai/assist` for human-reviewed drafts, which follow the API's plan, feature rollout and workspace permission checks. Ollama must run on the API host; set `OLLAMA_BASE_URL` and `OLLAMA_MODEL` there when using a non-default local model.
 
 ## Useful commands
 
@@ -171,6 +192,8 @@ Screens use safe-area-aware pages and scroll containers for long content. Forms 
 - Production operations still need server monitoring, backups, delivery-provider setup, data retention and incident-response processes.
 
 ## App previews
+
+The branded splash also appears in Expo Go while the initial session is restored.
 
 The repository includes its actual app icon and native launch lockup above. Product screen captures should be captured from iOS and Android preview builds with realistic test data. Review them at phone and tablet widths and remove customer or workspace personal data before using them in public documentation or store listings.
 

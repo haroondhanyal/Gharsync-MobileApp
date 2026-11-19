@@ -6,7 +6,7 @@ import { useSession } from "../auth/session-context";
 import { Button, Card, Field, Heading, Notice, Page } from "./ui";
 import { colors } from "../theme";
 type Profile={fullName:string;email:string;phone:string;city:string;countryCode:string};
-export function ProfileScreen(){const cache=useQueryClient();const{user,setUser}=useSession();const query=useQuery({queryKey:["profile"],queryFn:()=>api<Profile>("/auth/mobile/me")});const[v,setV]=useState<Profile>({fullName:"",email:"",phone:"",city:"",countryCode:"PK"});const[currentPassword,setCurrent]=useState("");const[newPassword,setNew]=useState("");
+export function ProfileScreen(){const cache=useQueryClient();const{user,setUser}=useSession();const query=useQuery({queryKey:["profile"],queryFn:()=>api<Profile>("/mobile/me")});const[v,setV]=useState<Profile>({fullName:"",email:"",phone:"",city:"",countryCode:"PK"});const[currentPassword,setCurrent]=useState("");const[newPassword,setNew]=useState("");
  useEffect(()=>{if(query.data)setV(query.data)},[query.data]);
  const update=useMutation({mutationFn:()=>api("/auth/me/profile",{method:"PATCH",body:{fullName:v.fullName,phone:v.phone,city:v.city,countryCode:v.countryCode}}),onSuccess:async()=>{await cache.invalidateQueries({queryKey:["profile"]});if(user)setUser({...user,fullName:v.fullName})}});
  const password=useMutation({mutationFn:()=>api("/auth/me/password",{method:"PATCH",body:{currentPassword,newPassword}}),onSuccess:()=>{setCurrent("");setNew("");cache.invalidateQueries({queryKey:["security"]})}});

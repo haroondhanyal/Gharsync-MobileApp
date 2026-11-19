@@ -1,5 +1,13 @@
 # GharSync Mobile
 
+<p align="center">
+  <img src="./assets/icon.png" width="112" alt="GharSync mobile app icon" />
+  <br />
+  <img src="./assets/splash-lockup.png" width="520" alt="GharSync native mobile launch screen branding" />
+  <br />
+  <strong>GharSync mobile app · iOS and Android</strong>
+</p>
+
 GharSync Mobile is the native companion app for GharSync service businesses. It gives owners, managers, technicians and platform operators a phone-first workspace for customer records, home assets, service jobs, quotes, invoices, inventory, team operations and support.
 
 The app is built with Expo and React Native and connects to the existing GharSync API. Business rules, tenant isolation, role permissions, financial calculations and audit records remain server-owned.
